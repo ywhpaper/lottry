@@ -1,4 +1,5 @@
 import { SSQ_HEADER, DLT_HEADER } from './headers.js';
+import { analyzeSSQ, analyzeDLT, recommendSSQ, recommendDLT } from './core.js';
 
 const SSQ_URL = (start, end) =>
   `http://datachart.500.com/ssq/history/newinc/history.php?start=${start}&end=${end}`;
@@ -152,3 +153,67 @@ export async function exportExcel(rows, header, filename) {
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+const state = { kind: 'ssq', rows: [], draws: [] };
+
+function currentHeader() { return state.kind === 'ssq' ? SSQ_HEADER : DLT_HEADER; }
+function analyzeFor(kind, draws) {
+  const recent = draws.slice(-180);
+  return kind === 'ssq' ? analyzeSSQ(recent) : analyzeDLT(recent);
+}
+
+async function onGenerate() {
+  const btn = document.getElementById('btn-generate');
+  btn.disabled = true; btn.textContent = '抓取中...';
+  try {
+    const draws = await refreshDraws(state.kind);
+    state.draws = draws;
+    state.rows = analyzeFor(state.kind, draws);
+    renderTable(state.rows, currentHeader(), document.getElementById('table-container'));
+  } catch (e) {
+    document.getElementById('table-container').textContent = '抓取失败:' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '生成 / 更新';
+  }
+}
+
+function onDownload() {
+  if (!state.rows.length) return alert('请先点击生成');
+  const name = state.kind === 'ssq' ? '双色球转化结果.xlsx' : '大乐透转化结果.xlsx';
+  exportExcel(state.rows, currentHeader(), name);
+}
+
+function onRecommend() {
+  if (!state.draws.length) return alert('请先点击生成');
+  const recent = state.draws.slice(-100);
+  const el = document.getElementById('recommend');
+  if (state.kind === 'ssq') {
+    const r = recommendSSQ(recent);
+    el.textContent = `推荐(双色球):红 ${r.reds.join(' ')} + 蓝 ${r.blue}`;
+  } else {
+    const r = recommendDLT(recent);
+    el.textContent = `推荐(大乐透):前区 ${r.fronts.join(' ')} + 后区 ${r.backs.join(' ')}`;
+  }
+}
+
+function switchTab(kind) {
+  state.kind = kind; state.rows = []; state.draws = [];
+  document.getElementById('tab-ssq').classList.toggle('active', kind === 'ssq');
+  document.getElementById('tab-dlt').classList.toggle('active', kind === 'dlt');
+  document.getElementById('table-container').innerHTML = '';
+  document.getElementById('recommend').textContent = '';
+  const cached = loadCache(kind);
+  if (cached.length) {
+    state.draws = cached;
+    state.rows = analyzeFor(kind, cached);
+    renderTable(state.rows, currentHeader(), document.getElementById('table-container'));
+  }
+}
+
+document.getElementById('btn-generate').addEventListener('click', onGenerate);
+document.getElementById('btn-download').addEventListener('click', onDownload);
+document.getElementById('btn-recommend').addEventListener('click', onRecommend);
+document.getElementById('tab-ssq').addEventListener('click', () => switchTab('ssq'));
+document.getElementById('tab-dlt').addEventListener('click', () => switchTab('dlt'));
+
+switchTab('ssq');
