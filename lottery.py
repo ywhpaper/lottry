@@ -11,7 +11,10 @@ import requests
 from lxml import etree
 
 desk = os.path.join(os.path.expanduser("~"), "Desktop")
-os.makedirs(os.path.join(desk, 'lottery'), exist_ok=True)
+try:
+    os.makedirs(os.path.join(desk, 'lottery'), exist_ok=True)
+except OSError:
+    pass
 BASE_DIR = os.path.join(desk, 'lottery')
 
 def transform1(nums):

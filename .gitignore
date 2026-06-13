@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.pyc
+
+# PyInstaller build artifacts
+build/
+dist/
+*.spec
+
+# 运行时输出目录(exe 旁边生成)
+/lottery/
+
+# 临时文件
+~$*.xlsx
