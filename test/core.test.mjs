@@ -52,3 +52,28 @@ test('header lengths match Python multi_index', () => {
   assert.equal(SSQ_HEADER.length, 97);
   assert.equal(DLT_HEADER.length, 102);
 });
+
+import { analyzeSSQ } from '../core.js';
+
+const ssqDraws = [
+  { period: '24001', reds: [1, 2, 3, 11, 22, 33], blue: 7 },
+  { period: '24002', reds: [3, 8, 15, 16, 20, 30], blue: 12 },
+];
+
+test('analyzeSSQ row length equals header length', () => {
+  const rows = analyzeSSQ(ssqDraws);
+  assert.equal(rows.length, 2);
+  for (const r of rows) assert.equal(r.length, SSQ_HEADER.length);
+});
+
+test('analyzeSSQ core feature values', () => {
+  const r = analyzeSSQ(ssqDraws)[0];
+  assert.equal(r[0], '24001');
+  assert.equal(r[1], '1.2.3.11.22.33+7');
+  assert.equal(r[2], 1 + 2 + 3 + 11 + 22 + 33); // 和值 72
+  assert.equal(r[4], null);   // 第一个相克为空
+  assert.equal(r[33], 4); // 奇数 1,3,11,33
+  assert.equal(r[34], 2); // 偶数 2,22
+  assert.equal(r[35], 1); // 分区 one-hot 球号1 在列 35
+  assert.equal(r[75], 7); // 蓝球值
+});
