@@ -4,9 +4,34 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>彩票分析</title>
+  <style>
+    body { font-family: sans-serif; margin: 12px; }
+    .tabs button { padding: 6px 16px; cursor: pointer; }
+    .tabs button.active { font-weight: bold; border-bottom: 2px solid #333; }
+    .disclaimer { color: #b00; font-size: 12px; margin: 8px 0; }
+    table.lottery { border-collapse: collapse; font-size: 11px; }
+    table.lottery th, table.lottery td {
+      border: 1px solid #000; text-align: center; padding: 1px 3px; min-width: 16px;
+    }
+    td.ke { color: #FF0000; } td.xing { color: #00FF00; } td.sheng { color: #0000FF; }
+    td.zone1 { background: #FFFFE0; } td.zone2 { background: #ADD8E6; }
+    td.zone3 { background: #90EE90; } td.zone4 { background: #E6E6FA; }
+  </style>
 </head>
 <body>
   <h1>彩票分析</h1>
+  <div class="tabs">
+    <button id="tab-ssq" class="active">双色球</button>
+    <button id="tab-dlt">大乐透</button>
+  </div>
+  <p class="disclaimer">声明:彩票开奖完全随机,本推荐仅供娱乐参考,不构成任何投注建议。</p>
+  <div>
+    <button id="btn-generate">生成 / 更新</button>
+    <button id="btn-download">下载 Excel</button>
+    <button id="btn-recommend">号码推荐 / 换一组</button>
+  </div>
+  <div id="recommend"></div>
+  <div id="table-container"></div>
   <script src="vendor/exceljs.min.js"></script>
   <script type="module" src="lottery.js"></script>
 </body>

@@ -1,3 +1,5 @@
+import { SSQ_HEADER, DLT_HEADER } from './headers.js';
+
 const SSQ_URL = (start, end) =>
   `http://datachart.500.com/ssq/history/newinc/history.php?start=${start}&end=${end}`;
 const DLT_URL = (start, end) =>
@@ -53,4 +55,42 @@ async function refreshDraws(kind) {
   const merged = mergeDraws(cached, draws);
   saveCache(kind, merged);
   return merged;
+}
+
+function classForCell(group, label, value) {
+  const cls = [];
+  if (value === '↑克' || value === '↓克') cls.push('ke');
+  else if (value === '刑') cls.push('xing');
+  else if (value === '↑生' || value === '↓生') cls.push('sheng');
+  if (group === '蓝球1区') cls.push('zone1');
+  else if (group === '蓝球2区') cls.push('zone2');
+  else if (group === '蓝球3区') cls.push('zone3');
+  return cls.join(' ');
+}
+
+export function renderTable(rows, header, container) {
+  let html = '<table class="lottery"><thead><tr>';
+  let i = 0;
+  while (i < header.length) {
+    const g = header[i][0];
+    let span = 1;
+    while (i + span < header.length && header[i + span][0] === g) span++;
+    html += `<th colspan="${span}">${g}</th>`;
+    i += span;
+  }
+  html += '</tr><tr>';
+  for (const [, label] of header) html += `<th>${label}</th>`;
+  html += '</tr></thead><tbody>';
+  for (const row of rows) {
+    html += '<tr>';
+    for (let c = 0; c < header.length; c++) {
+      const [g, label] = header[c];
+      const v = row[c];
+      const cls = classForCell(g, label, v);
+      html += `<td class="${cls}">${v == null ? '' : v}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody></table>';
+  container.innerHTML = html;
 }
