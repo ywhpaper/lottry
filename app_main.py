@@ -28,8 +28,10 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
                   '(KHTML, like Gecko) Chrome/120.0 Safari/537.36'
 }
-SSQ_URL = 'https://datachart.500.com/ssq/history/newinc/history.php'
-DLT_URL = 'https://datachart.500.com/dlt/history/newinc/history.php'
+# 不带参数时 500.com 只返回最近 30 期;必须带期号范围才能抓全量。
+# 双色球期号从 03001(2003年)起,大乐透从 07001(2007年)起,end 给一个足够大的上界。
+SSQ_URL = 'https://datachart.500.com/ssq/history/newinc/history.php?start=03001&end=99999'
+DLT_URL = 'https://datachart.500.com/dlt/history/newinc/history.php?start=07001&end=99999'
 
 
 def scrape(url, n_red, n_blue):
