@@ -6,6 +6,19 @@ const SSQ_URL = (start, end) =>
 const DLT_URL = (start, end) =>
   `http://datachart.500.com/dlt/history/newinc/history.php?start=${start}&end=${end}`;
 
+function diagLog(msg) {
+  const el = document.getElementById('diag');
+  if (!el) return;
+  el.classList.add('show');
+  const ts = new Date().toLocaleTimeString();
+  el.textContent += `[${ts}] ${msg}\n`;
+  el.scrollTop = el.scrollHeight;
+}
+function diagClear() {
+  const el = document.getElementById('diag');
+  if (el) { el.textContent = ''; el.classList.remove('show'); }
+}
+
 function parseRows(html, kind) {
   const doc = new DOMParser().parseFromString(html, 'text/html');
   const trs = doc.querySelectorAll('tr.t_tr1');
@@ -29,9 +42,33 @@ function parseRows(html, kind) {
 
 async function fetchDraws(kind, start, end) {
   const url = kind === 'ssq' ? SSQ_URL(start, end) : DLT_URL(start, end);
-  const resp = await fetch(url);
+  diagLog('请求网址: ' + url);
+  diagLog('页面来源(origin): ' + location.origin + '  协议: ' + location.protocol);
+  let resp;
+  try {
+    resp = await fetch(url);
+  } catch (e) {
+    diagLog('fetch 抛出异常: ' + e.name + ' - ' + e.message);
+    diagLog('→ 多半是 CORS 跨域拦截 或 网络/混合内容(https页面请求http)被拦。');
+    diagLog('  浏览器的 fetch 不同于 Python requests:目标站点不返回 CORS 头时,响应会被浏览器拦掉。');
+    throw e;
+  }
+  diagLog('HTTP 状态: ' + resp.status + ' ' + resp.statusText + '  type=' + resp.type);
+  if (resp.type === 'opaque') {
+    diagLog('→ 响应是 opaque(no-cors 模式),内容不可读,无法解析。');
+  }
   const html = await resp.text();
-  return parseRows(html, kind);
+  diagLog('收到响应文本长度: ' + html.length + ' 字符');
+  const draws = parseRows(html, kind);
+  diagLog('解析出期数: ' + draws.length + ' 条');
+  if (draws.length === 0) {
+    diagLog('→ 0 条:可能页面结构变了(找不到 tr.t_tr1),或返回的是跳转/拦截页而非数据表。');
+    diagLog('  返回内容前 300 字符预览:');
+    diagLog(html.slice(0, 300));
+  } else {
+    diagLog('首条样例: ' + JSON.stringify(draws[0]));
+  }
+  return draws;
 }
 
 const CACHE_KEY = (kind) => `lottery_${kind}_draws`;
@@ -165,13 +202,19 @@ function analyzeFor(kind, draws) {
 async function onGenerate() {
   const btn = document.getElementById('btn-generate');
   btn.disabled = true; btn.textContent = '抓取中...';
+  diagClear();
+  diagLog('开始生成,板块=' + state.kind);
   try {
     const draws = await refreshDraws(state.kind);
     state.draws = draws;
     state.rows = analyzeFor(state.kind, draws);
     renderTable(state.rows, currentHeader(), document.getElementById('table-container'));
+    diagLog('成功:合并后共 ' + draws.length + ' 期,渲染最近 ' + Math.min(draws.length, 180) + ' 期。');
   } catch (e) {
     document.getElementById('table-container').textContent = '抓取失败:' + e.message;
+    diagLog('抓取失败,错误: ' + e.name + ' - ' + e.message);
+    const cached = loadCache(state.kind);
+    diagLog('本地缓存现有 ' + cached.length + ' 期(抓取失败时仍可用缓存数据分析)。');
   } finally {
     btn.disabled = false; btn.textContent = '生成 / 更新';
   }
@@ -210,9 +253,26 @@ function switchTab(kind) {
   }
 }
 
+function onCopyDiag() {
+  const el = document.getElementById('diag');
+  const text = el ? el.textContent : '';
+  if (!text) return alert('暂无诊断信息,请先点击「生成 / 更新」');
+  navigator.clipboard.writeText(text).then(
+    () => alert('诊断信息已复制,可粘贴发送'),
+    () => {
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(r);
+      alert('已选中诊断文本,请手动复制(Ctrl+C)');
+    }
+  );
+}
+
 document.getElementById('btn-generate').addEventListener('click', onGenerate);
 document.getElementById('btn-download').addEventListener('click', onDownload);
 document.getElementById('btn-recommend').addEventListener('click', onRecommend);
+document.getElementById('btn-copy-diag').addEventListener('click', onCopyDiag);
 document.getElementById('tab-ssq').addEventListener('click', () => switchTab('ssq'));
 document.getElementById('tab-dlt').addEventListener('click', () => switchTab('dlt'));
 
