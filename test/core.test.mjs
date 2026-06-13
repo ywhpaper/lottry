@@ -45,3 +45,10 @@ test('lastDigit and mod3', () => {
   assert.equal(lastDigit(23), 3);
   assert.equal(mod3(7), 1);
 });
+
+import { SSQ_HEADER, DLT_HEADER } from '../headers.js';
+
+test('header lengths match Python multi_index', () => {
+  assert.equal(SSQ_HEADER.length, 97);
+  assert.equal(DLT_HEADER.length, 102);
+});
