@@ -51,17 +51,9 @@ export function countDuplicates(arr) {
   return dup;
 }
 
-function wuxingSeq(nums) {
-  return nums.map(getElementType);
-}
-function propSeq(elems) {
-  const withSentinel = ['木', ...elems];
-  const out = [];
-  for (let i = 1; i < withSentinel.length; i++) {
-    out.push(getPropType(withSentinel[i - 1] + withSentinel[i]));
-  }
-  out[0] = null;
-  return out;
+function crossPeriodProps(prev, cur) {
+  if (!prev) return cur.map(() => null);
+  return cur.map((n, i) => getPropType(getElementType(prev[i]) + getElementType(n)));
 }
 
 export function analyzeSSQ(draws) {
@@ -75,8 +67,8 @@ export function analyzeSSQ(draws) {
     row[1] = reds.join('.') + '+' + blue;
     row[2] = reds.reduce((a, b) => a + b, 0);
 
-    const elems = wuxingSeq(reds);
-    const props = propSeq(elems);
+    const elems = reds.map(getElementType);
+    const props = crossPeriodProps(prevReds, reds);
     for (let i = 0; i < 6; i++) {
       row[3 + i * 2] = elems[i];
       row[4 + i * 2] = props[i];
