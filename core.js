@@ -1,5 +1,5 @@
 // core.js — pure lottery-analysis logic (Node-testable, no browser side-effects)
-import { SSQ_HEADER } from './headers.js';
+import { SSQ_HEADER, DLT_HEADER } from './headers.js';
 
 export function getElementType(num) {
   const d = num % 10;
@@ -104,6 +104,67 @@ export function analyzeSSQ(draws) {
 
     if (row.length !== SSQ_HEADER.length) {
       throw new Error(`SSQ row length ${row.length} != ${SSQ_HEADER.length}`);
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+
+export function analyzeDLT(draws) {
+  const rows = [];
+  for (let d = 0; d < draws.length; d++) {
+    const { period, fronts, backs } = draws[d];
+    const prevFronts = d > 0 ? draws[d - 1].fronts : null;
+    const prevBacks = d > 0 ? draws[d - 1].backs : null;
+    const row = new Array(DLT_HEADER.length).fill(null);
+
+    row[0] = period;
+    row[1] = fronts.join('.') + '+' + backs.join('.');
+    row[2] = fronts.reduce((a, b) => a + b, 0);
+
+    const fElems = fronts.map(getElementType);
+    const fProps = crossPeriodProps(prevFronts, fronts);
+    for (let i = 0; i < 5; i++) {
+      row[3 + i * 2] = fElems[i];
+      row[4 + i * 2] = fProps[i];
+    }
+    for (let i = 0; i < 5; i++) {
+      const r = mod3(fronts[i]);
+      row[13 + i * 3 + r] = r;
+    }
+    row[28] = fronts.filter((n) => n % 2 === 1).length;
+    row[29] = fronts.filter((n) => n % 2 === 0).length;
+    for (const n of fronts) if (n >= 1 && n <= 35) row[30 + (n - 1)] = n;
+    row[65] = fronts.filter((n) => n < 10).length;
+    row[66] = fronts.filter((n) => n > 9 && n < 20).length;
+    row[67] = fronts.filter((n) => n > 19 && n < 30).length;
+    row[68] = fronts.filter((n) => n > 29 && n < 40).length;
+    row[69] = countConsecutive(fronts);
+    row[70] = countRepeatWithPrev(fronts, prevFronts);
+    row[71] = countDuplicates(fronts.map(lastDigit));
+
+    row[72] = backs[0];
+    row[73] = backs[1];
+    row[74] = backs.reduce((a, b) => a + b, 0);
+    const bElems = backs.map(getElementType);
+    row[75] = bElems[0];
+    row[76] = bElems[1];
+    const bProps = crossPeriodProps(prevBacks, backs);
+    row[77] = bProps[0];
+    row[78] = bProps[1];
+    for (let i = 0; i < 2; i++) {
+      const r = mod3(backs[i]);
+      row[79 + i * 3 + r] = r;
+    }
+    row[85] = backs.filter((n) => n % 2 === 1).length;
+    row[86] = backs.filter((n) => n % 2 === 0).length;
+    for (const n of backs) if (n >= 1 && n <= 12) row[87 + (n - 1)] = n;
+    row[99] = countConsecutive(backs);
+    row[100] = countRepeatWithPrev(backs, prevBacks);
+    row[101] = countDuplicates(backs.map(lastDigit));
+
+    if (row.length !== DLT_HEADER.length) {
+      throw new Error(`DLT row length ${row.length} != ${DLT_HEADER.length}`);
     }
     rows.push(row);
   }

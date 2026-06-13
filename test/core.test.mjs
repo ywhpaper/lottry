@@ -89,3 +89,39 @@ test('analyzeSSQ 相克 is cross-period per ball position', () => {
   assert.equal(rows[0][77], null);
   assert.equal(rows[1][77], '刑'); // blue 7→火, 12→火 ⇒ 火火=刑
 });
+
+import { analyzeDLT } from '../core.js';
+
+const dltDraws = [
+  { period: '24001', fronts: [1, 5, 12, 23, 35], backs: [3, 9] },
+  { period: '24002', fronts: [2, 8, 12, 20, 30], backs: [1, 9] },
+];
+
+test('analyzeDLT row length equals header length', () => {
+  const rows = analyzeDLT(dltDraws);
+  for (const r of rows) assert.equal(r.length, DLT_HEADER.length);
+});
+
+test('analyzeDLT core values', () => {
+  const r = analyzeDLT(dltDraws)[0];
+  assert.equal(r[0], '24001');
+  assert.equal(r[1], '1.5.12.23.35+3.9');
+  assert.equal(r[2], 1 + 5 + 12 + 23 + 35); // 76
+  assert.equal(r[4], null);                  // 前区第一个相克空(整行)
+  assert.equal(r[72], 3);                    // 后区球1
+  assert.equal(r[73], 9);                    // 后区球2
+  assert.equal(r[74], 12);                   // 红和值
+  assert.equal(r[77], null);                 // 后区第一个相克空
+});
+
+test('analyzeDLT 相克 cross-period (front and back, first row null)', () => {
+  const rows = analyzeDLT(dltDraws);
+  for (const c of [4, 6, 8, 10, 12]) assert.equal(rows[0][c], null); // front 相克 first row
+  assert.equal(rows[0][77], null);
+  assert.equal(rows[0][78], null);
+  // second period front 相克 per position: prev fronts [1,5,12,23,35]->[水,土,火,木,土], cur [2,8,12,20,30]->[火,木,火,土,土]
+  assert.deepEqual([4,6,8,10,12].map((c)=>rows[1][c]),
+    ['↓克','↑克','刑','↓克','刑']);
+  // second period back 相克: prev backs [3,9]->[木,金], cur [1,9]->[水,金]
+  assert.deepEqual([77,78].map((c)=>rows[1][c]), ['↑生','刑']);
+});
