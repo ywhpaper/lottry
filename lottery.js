@@ -94,3 +94,61 @@ export function renderTable(rows, header, container) {
   html += '</tbody></table>';
   container.innerHTML = html;
 }
+
+function fillFor(group) {
+  const map = { '蓝球1区':'FFFFE0', '蓝球2区':'ADD8E6', '蓝球3区':'90EE90' };
+  return map[group];
+}
+function fontColorFor(value) {
+  if (value === '↑克' || value === '↓克') return 'FF0000';
+  if (value === '刑') return '00FF00';
+  if (value === '↑生' || value === '↓生') return '0000FF';
+  return null;
+}
+
+export async function exportExcel(rows, header, filename) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Sheet1');
+  const thin = { style: 'thin', color: { argb: 'FF000000' } };
+  const border = { top: thin, left: thin, bottom: thin, right: thin };
+
+  const groupRow = ws.addRow(header.map((h) => h[0]));
+  const labelRow = ws.addRow(header.map((h) => h[1]));
+  let i = 0;
+  while (i < header.length) {
+    const g = header[i][0]; let span = 1;
+    while (i + span < header.length && header[i + span][0] === g) span++;
+    if (span > 1) ws.mergeCells(1, i + 1, 1, i + span);
+    i += span;
+  }
+  for (const r of [groupRow, labelRow]) r.eachCell((c) => {
+    c.border = border; c.alignment = { horizontal: 'center', vertical: 'center' };
+  });
+
+  for (const row of rows) {
+    const xr = ws.addRow(row.map((v) => (v == null ? '' : v)));
+    xr.eachCell({ includeEmpty: true }, (cell, col) => {
+      const [g] = header[col - 1];
+      const v = row[col - 1];
+      cell.border = border;
+      cell.alignment = { horizontal: 'center', vertical: 'center' };
+      const fill = fillFor(g);
+      if (fill) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + fill } };
+      const fc = fontColorFor(v);
+      if (fc) cell.font = { color: { argb: 'FF' + fc } };
+    });
+  }
+
+  ws.columns.forEach((col, idx) => {
+    if (idx === 1) col.width = 8; else if (idx === 2) col.width = 23;
+    else if (idx >= 3 && idx < 17) col.width = 6; else col.width = 3.5;
+  });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
