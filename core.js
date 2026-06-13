@@ -170,3 +170,79 @@ export function analyzeDLT(draws) {
   }
   return rows;
 }
+
+export function weightedSampleNoReplace(items, weights, k, rng = Math.random) {
+  const pool = items.slice();
+  const w = weights.slice();
+  const out = [];
+  for (let n = 0; n < k && pool.length > 0; n++) {
+    const total = w.reduce((a, b) => a + b, 0);
+    let x = rng() * total;
+    let idx = 0;
+    while (idx < w.length - 1 && x >= w[idx]) { x -= w[idx]; idx++; }
+    out.push(pool[idx]);
+    pool.splice(idx, 1);
+    w.splice(idx, 1);
+  }
+  return out;
+}
+
+function freqWeights(range, draws, pick) {
+  const [min, max] = range;
+  const counts = new Array(max - min + 1).fill(0);
+  for (const d of draws) for (const n of pick(d)) {
+    if (n >= min && n <= max) counts[n - min] += 1;
+  }
+  const items = [], weights = [];
+  for (let n = min; n <= max; n++) {
+    items.push(n);
+    weights.push(counts[n - min] + 1); // +1 平滑,冷号仍有机会
+  }
+  return { items, weights };
+}
+
+function quantile(sorted, q) {
+  if (sorted.length === 0) return 0;
+  const pos = (sorted.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  if (lo === hi) return sorted[lo];
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo);
+}
+
+function passesValidation(nums, sums, oddRatios) {
+  const s = nums.reduce((a, b) => a + b, 0);
+  const odd = nums.filter((n) => n % 2 === 1).length / nums.length;
+  const sSorted = [...sums].sort((a, b) => a - b);
+  const oSorted = [...oddRatios].sort((a, b) => a - b);
+  const sLo = quantile(sSorted, 0.1), sHi = quantile(sSorted, 0.9);
+  const oLo = quantile(oSorted, 0.1), oHi = quantile(oSorted, 0.9);
+  return s >= sLo && s <= sHi && odd >= oLo && odd <= oHi;
+}
+
+export function recommendSSQ(draws, rng = Math.random, maxTries = 30) {
+  const { items, weights } = freqWeights([1, 33], draws, (d) => d.reds);
+  const blue = freqWeights([1, 16], draws, (d) => [d.blue]);
+  const sums = draws.map((d) => d.reds.reduce((a, b) => a + b, 0));
+  const oddR = draws.map((d) => d.reds.filter((n) => n % 2 === 1).length / 6);
+  let reds;
+  for (let t = 0; t < maxTries; t++) {
+    reds = weightedSampleNoReplace(items, weights, 6, rng).sort((a, b) => a - b);
+    if (passesValidation(reds, sums, oddR)) break;
+  }
+  const blueP = weightedSampleNoReplace(blue.items, blue.weights, 1, rng)[0];
+  return { reds, blue: blueP };
+}
+
+export function recommendDLT(draws, rng = Math.random, maxTries = 30) {
+  const f = freqWeights([1, 35], draws, (d) => d.fronts);
+  const b = freqWeights([1, 12], draws, (d) => d.backs);
+  const sums = draws.map((d) => d.fronts.reduce((a, x) => a + x, 0));
+  const oddR = draws.map((d) => d.fronts.filter((n) => n % 2 === 1).length / 5);
+  let fronts;
+  for (let t = 0; t < maxTries; t++) {
+    fronts = weightedSampleNoReplace(f.items, f.weights, 5, rng).sort((a, b) => a - b);
+    if (passesValidation(fronts, sums, oddR)) break;
+  }
+  const backs = weightedSampleNoReplace(b.items, b.weights, 2, rng).sort((a, b) => a - b);
+  return { fronts, backs };
+}

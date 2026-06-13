@@ -125,3 +125,43 @@ test('analyzeDLT 相克 cross-period (front and back, first row null)', () => {
   // second period back 相克: prev backs [3,9]->[木,金], cur [1,9]->[水,金]
   assert.deepEqual([77,78].map((c)=>rows[1][c]), ['↑生','刑']);
 });
+
+import { weightedSampleNoReplace, recommendSSQ, recommendDLT } from '../core.js';
+
+// 确定性 RNG 供测试
+function mulberry(seed){ return function(){ let t=seed+=0x6D2B79F5; t=Math.imul(t^t>>>15,t|1); t^=t+Math.imul(t^t>>>7,t|61); return ((t^t>>>14)>>>0)/4294967296; }; }
+
+test('weightedSampleNoReplace returns k distinct items in range', () => {
+  const rng = mulberry(42);
+  const pick = weightedSampleNoReplace([1,2,3,4,5,6,7,8,9,10],
+    [1,1,1,1,1,1,1,1,1,1], 6, rng);
+  assert.equal(pick.length, 6);
+  assert.equal(new Set(pick).size, 6);
+});
+
+test('recommendSSQ returns 6 sorted reds (1-33) + 1 blue (1-16)', () => {
+  const draws = [
+    { period:'1', reds:[1,2,3,4,5,6], blue:7 },
+    { period:'2', reds:[3,8,15,16,20,30], blue:12 },
+  ];
+  const rec = recommendSSQ(draws, mulberry(1));
+  assert.equal(rec.reds.length, 6);
+  assert.equal(new Set(rec.reds).size, 6);
+  assert.deepEqual(rec.reds, [...rec.reds].sort((a,b)=>a-b));
+  assert.ok(rec.reds.every(n => n>=1 && n<=33));
+  assert.ok(rec.blue>=1 && rec.blue<=16);
+});
+
+test('recommendDLT returns 5 fronts (1-35) + 2 backs (1-12)', () => {
+  const draws = [
+    { period:'1', fronts:[1,5,12,23,35], backs:[3,9] },
+    { period:'2', fronts:[2,8,12,20,30], backs:[1,9] },
+  ];
+  const rec = recommendDLT(draws, mulberry(2));
+  assert.equal(rec.fronts.length, 5);
+  assert.equal(rec.backs.length, 2);
+  assert.deepEqual(rec.fronts, [...rec.fronts].sort((a,b)=>a-b));
+  assert.deepEqual(rec.backs, [...rec.backs].sort((a,b)=>a-b));
+  assert.ok(rec.fronts.every(n => n>=1 && n<=35));
+  assert.ok(rec.backs.every(n => n>=1 && n<=12));
+});
